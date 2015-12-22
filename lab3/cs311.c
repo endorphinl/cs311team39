@@ -102,6 +102,7 @@ void initialize(char *program_filename) {
     int i;
 
     init_memory();
+    init_pipeline_latches();
     load_program(program_filename);
     //NEXT_STATE = CURRENT_STATE;
     RUN_BIT = TRUE;
