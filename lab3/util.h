@@ -69,6 +69,7 @@ typedef struct inst_s {
 typedef struct pipelns {
     struct {
         int flushed;
+        int stall;
         uint32_t pc;
         char *binary_inst;
     } if_id;
@@ -83,6 +84,10 @@ typedef struct pipelns {
 
         unsigned char reg_rt;
         uint32_t val_rt;
+
+        struct {
+            int signal;
+        } mem_read;
 
         struct {
             int signal;

@@ -33,25 +33,43 @@ instruction* get_inst_info(uint32_t pc)
 
 void fetch()
 {
-    if(flushed)
-        flushed = 0;
+    if(pipeln.if_id.flushed)
+        pipeln.if_id.flushed = 0;
     else
     {
         pipeln.if_id.binary_inst = get_inst_info(CURRENT_STATE.PC);
         pipeln.if_id.pc = CURRENT_STATE.PC;
+
+        //hazard unit
+        instruction *temp;
+        temp = parsing_instr(pipeln.if_id.binary_inst, (pipeln.if_id.pc - MEM_TEXT_START) >> 2);
+
+        if(pipeln.id_ex.mem_read.signal == 1 && ((pipeln.id_ex.reg_rt == temp.r_t.r_i.rs) || (pipeln.id_ex.reg_rt == temp.r_t.r_i.rt)))
+        {
+            CURRENT_STATE.PC -= 4;
+            pipeln.if_id.stall = 1;
+        }
     }
 }
 
 void decode()
 {
-    if(flushed)
-        flushed = 0;
+    if(pipeln.id_ex.flushed)
+        pipeln.id_ex.flushed = 0;
+    else if(pipeln.if_id.stall)
+    {
+        stall();
+        pipeln.if_id.stall = 0;
+    }
     else
     {
         pipeln.id_ex.inst = parsing_instr(pipeln.if_id.binary_inst, (pipeln.if_id.pc - MEM_TEXT_START) >> 2);
         pipeln.id_ex.pc = pipeln.if_id.pc;
 
-        //forwarding
+        if(pipeln.id_ex.inst.opcode == 35) // "lw"
+            pipeln.id_ex.mem_read.signal = 1;
+
+        //forwarding unit
         //rs
         pipeln.id_ex.reg_rs = pipeln.id_ex.inst.r_t.r_i.rs;
         pipeln.id_ex.val_rs = CURRENT_STATE.REGS[pipeln.id_ex.reg_rs];
@@ -94,7 +112,11 @@ void decode()
 void execute()
 {
     instruction *instr = pipeln.id_ex.inst;
-    if(instr.opcode == 0){
+    if(instr.opcode == 0 && instr.func_code == 0 && instr.r_t.r_i.rs == 0){
+        pipeln.ex_mem.wb.signal = 0;
+        pipeln.ex_mem.mem.signal = 0;
+    }
+    else if(instr.opcode == 0){
         if(pipeln.id_ex.forwarded.signal_rs)
             uint32_t val_rs = pipeln.id_ex.forwarded.val_rs;
         else
@@ -317,6 +339,31 @@ void flush()
     pipeln.if_id.pc = 0;
     pipeln.if_id.binary_inst = 0;
 
+    //reset id_ex
+    pipeln.id_ex.pc = 0;
+    pipeln.id_ex.reg_rs = 0;
+    pipeln.id_ex.val_rs = 0;
+    pipeln.id_ex.reg_rt = 0;
+    pipeln.id_ex.val_rt = 0;
+    pipeln.id_ex.forwarded.signal_rs = 0;
+    pipeln.id_ex.forwarded.signal_rt = 0;
+    pipeln.id_ex.forwarded.val_rs = 0;
+    pipeln.id_ex.forwarded.val_rt = 0;
+
+    //reset id_ex.inst
+    pipeln.id_ex.inst.value = 0;
+    pipeln.id_ex.inst.opcode = 0;
+    pipeln.id_ex.inst.func_code = 0;
+    pipeln.id_ex.inst.r_t.r_i.rs = 0;
+    pipeln.id_ex.inst.r_t.r_i.rt = 0;
+    pipeln.id_ex.inst.r_t.r_i.r_i.r.rd = 0;
+    pipeln.id_ex.inst.r_t.r_i.r_i.imm = 0;
+    pipeln.id_ex.inst.r_t.r_i.r_i.r.shamt = 0;
+    pipeln.id_ex.inst.r_t.target = 0;
+}
+
+void stall()
+{
     //reset id_ex
     pipeln.id_ex.pc = 0;
     pipeln.id_ex.reg_rs = 0;
