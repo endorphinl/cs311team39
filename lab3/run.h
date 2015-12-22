@@ -110,7 +110,16 @@
 }
 
 /* functions */
-instruction*	get_inst_info(uint32_t pc);
+//instruction*	get_inst_info(uint32_t pc);
+char*	get_inst_info(uint32_t pc);
+void        fetch();
+void        decode();
+void        execute();
+void        memory();
+void        write_back();
+void        flush();
+uint32_t    sign_extend(short imm);
+uint32_t    zero_extend(short imm);
 void		process_instruction();
 
 #endif
