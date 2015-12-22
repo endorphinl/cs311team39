@@ -68,9 +68,6 @@ typedef struct inst_s {
 
 typedef struct pipelns {
     struct {
-    } cache_if;
-
-    struct {
         int flushed;
         uint32_t pc;
         char *binary_inst;
@@ -79,7 +76,7 @@ typedef struct pipelns {
     struct {
         int flushed;
         uint32_t pc;
-        instruction inst;
+        instruction *inst;
 
         unsigned char reg_rs;
         uint32_t val_rs;
@@ -115,7 +112,7 @@ typedef struct pipelns {
         } wb;
 
         uint32_t pc;
-        instruction inst;
+        instruction *inst;
     } ex_mem;
 
     struct {
@@ -124,7 +121,7 @@ typedef struct pipelns {
         uint32_t val_rd;
 
         uint32_t pc;
-        instruction inst;
+        instruction *inst;
     } mem_wb;
 } pipeln;
 
@@ -141,6 +138,9 @@ extern CPU_State CURRENT_STATE;
 /* For Instructions */
 extern instruction *INST_INFO;
 extern int NUM_INST;
+
+/* For Pipeline Latches */
+extern pipeln PIPELN;
 
 /* For Memory Regions */
 extern mem_region_t MEM_REGIONS[2];
@@ -161,6 +161,7 @@ void		mdump(int start, int stop);
 void		rdump();
 void		init_memory();
 void		init_inst_info();
+void        init_pipeline_latches();
 
 /* YOU IMPLEMENT THIS FUNCTION */
 void	process_instruction();

@@ -58,38 +58,54 @@ void decode()
         pipeln.id_ex.reg_rt = pipeln.id_ex.inst.r_t.r_i.rt;
         pipeln.id_ex.val_rt = CURRENT_STATE.REGS[pipeln.id_ex.reg_rt];
 
-        if(ex_mem.inst.rs == id_ex.inst.rs)
+        if(pipeln.mem_wb.signal == 1 && pipeln.mem_wb.reg_rd != 0 && !(pipeln.ex_mem.wb.signal == 1 && pipeln.ex_mem.wb.reg_rd != 0 && pipeln.ex_mem.wb.reg_rd == pipeln.id_ex.reg_rs) && pipeln.mem_wb.reg_rd == pipeln.id_ex.reg_rs)
         {
-            pipeln.id_ex.forwarded.signal = 1;
-            pipeln.id_ex.forwarded.val_rs = ;
+            //mem_wb forwarding
+            pipeln.id_ex.forwarded.signal_rs = 1;
+            pipeln.id_ex.forwarded.val_rs = pipeln.mem_wb.val_rd;
         }
+        else if(pipeln.ex_mem.wb.signal == 1 && pipeln.ex_mem.wb.reg_rd != 0 && pipeln.ex_mem.wb.reg_rd == pipeln.id_ex.reg_rs)
+        {
+            //ex_mem forwarding
+            pipeln.id_ex.forwarded.signal_rs = 1;
+            pipeln.id_ex.forwarded.val_rs = pipeln.ex_mem.wb.val_rd;
+        }
+        else
+            pipeln.id_ex.forwarded.signal_rs = 0;
+
         //rt
-        if //from ex/mem
+        if(pipeln.mem_wb.signal == 1 && pipeln.mem_wb.reg_rd != 0 && !(pipeln.ex_mem.wb.signal == 1 && pipeln.ex_mem.wb.reg_rd != 0 && pipeln.ex_mem.wb.reg_rd == pipeln.id_ex.reg_rt) && pipeln.mem_wb.reg_rd == pipeln.id_ex.reg_rt)
         {
-            pipeln.id_ex.forwarded.signal = 1;
-            pipeln.id_ex.forwarded.val_rt = ;
+            //mem_wb forwarding
+            pipeln.id_ex.forwarded.signal_rt = 1;
+            pipeln.id_ex.forwarded.val_rt = pipeln.mem_wb.val_rd;
         }
-        else if //from mem/wb
+        else if(pipeln.ex_mem.wb.signal == 1 && pipeln.ex_mem.wb.reg_rd != 0 && pipeln.ex_mem.wb.reg_rd == pipeln.id_ex.reg_rt)
         {
-            pipeln.id_ex.forwarded.signal = 1;
-            pipeln.id_ex.forwarded.val_rt = ;
+            //ex_mem forwarding
+            pipeln.id_ex.forwarded.signal_rt = 1;
+            pipeln.id_ex.forwarded.val_rt = pipeln.ex_mem.wb.val_rd;
         }
+        else
+            pipeln.id_ex.forwarded.signal_rt = 0;
     }
 }
 
 void execute()
 {
+    instruction *instr = pipeln.id_ex.inst;
     if(instr.opcode == 0){
-        if(pipeln.id_ex.forwarded.signal)
-        {
+        if(pipeln.id_ex.forwarded.signal_rs)
             uint32_t val_rs = pipeln.id_ex.forwarded.val_rs;
-            uint32_t val_rt = pipeln.id_ex.forwarded.val_rt;
-        }
         else
-        {
             uint32_t val_rs = pipeln.id_ex.val_rs;
+
+        if(pipeln.id_ex.forwarded.signal_rt)
+            uint32_t val_rt = pipeln.id_ex.forwarded.val_rt;
+        else
             uint32_t val_rt = pipeln.id_ex.val_rt;
-        }
+        unsigned char sa = pipeln.id_ex.inst.r_t.r_i.r_i.r.shamt;
+
         pipeln.ex_mem.wb.signal = 1;
         pipeln.ex_mem.mem.signal = 0;
 
@@ -123,7 +139,7 @@ void execute()
             }
         } else if (instr.func_code == 0x08){//jr
             flush();
-            CURRENT_STATE.PC = val_rs;
+            CURRENT_STATE.PC = val_rs - 4; //-4 cuz cycle() has +4 at the end
         }
     }
     else if(instr.opcode == 2 || instr.opcode == 3)
@@ -141,12 +157,20 @@ void execute()
         pipeln.ex_mem.mem.signal = 0;
 
         flush();
-        CURRENT_STATE.PC = target;
+        CURRENT_STATE.PC = target - 4; //-4 cuz cycle() has +4 at the end
     }  
     else
     {  
-        uint32_t val_rs = pipeln.id_ex.val_rs;
-        uint32_t val_rt = pipeln.id_ex.val_rt;
+        if(pipeln.id_ex.forwarded.signal_rs)
+            uint32_t val_rs = pipeln.id_ex.forwarded.val_rs;
+        else
+            uint32_t val_rs = pipeln.id_ex.val_rs;
+
+        if(pipeln.id_ex.forwarded.signal_rt)
+            uint32_t val_rt = pipeln.id_ex.forwarded.val_rt;
+        else
+            uint32_t val_rt = pipeln.id_ex.val_rt;
+
         short imm = pipeln.id_ex.inst.r_t.r_i.r_i.imm;
 
         if(instr.opcode == 9) // "addiu"
@@ -180,7 +204,7 @@ void execute()
             if(val_rs == val_rt)
             {
                 flush();
-                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2);
+                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
                 //pc = pc + 4 + imm
             }
         }
@@ -193,7 +217,7 @@ void execute()
             if(val_rs != val_rt)
             {
                 flush();
-                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2);
+                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
                 //pc = pc + 4 + imm
             }
         }
@@ -214,6 +238,7 @@ void execute()
 
             uint32_t sign_ext_imm = sign_extend(imm);
             pipeln.ex_mem.mem.reg_rt = pipeln.id_ex.reg_rt;
+            pipeln.ex_mem.wb.reg_rd = pipeln.id_ex.reg_rt; //for forwarding sake (otherwise the conditionals for forwarding becomes too complicated)
             pipeln.ex_mem.mem.address = val_rs + sign_ext_imm;
 
             //pipeln.ex_mem.wb.val_rd = mem_read_32(CURRENT_STATE.REGS[rs] + );
@@ -298,7 +323,8 @@ void flush()
     pipeln.id_ex.val_rs = 0;
     pipeln.id_ex.reg_rt = 0;
     pipeln.id_ex.val_rt = 0;
-    pipeln.id_ex.forwarded.signal = 0;
+    pipeln.id_ex.forwarded.signal_rs = 0;
+    pipeln.id_ex.forwarded.signal_rt = 0;
     pipeln.id_ex.forwarded.val_rs = 0;
     pipeln.id_ex.forwarded.val_rt = 0;
 

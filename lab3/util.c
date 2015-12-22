@@ -339,3 +339,66 @@ void init_inst_info()
 	INST_INFO[i].r_t.target = 0;
     }
 }
+
+void init_pipeline_latches()
+{
+    PIPELN.if_id.flushed = 0;
+    PIPELN.if_id.pc = 0;
+    PIPELN.if_id.binary_inst = 0;
+
+    PIPELN.id_ex.flushed = 0;
+    PIPELN.id_ex.pc = 0;
+    PIPELN.id_ex.reg_rs = 0;
+    PIPELN.id_ex.val_rs = 0;
+    PIPELN.id_ex.reg_rt = 0;
+    PIPELN.id_ex.val_rt = 0;
+    PIPELN.id_ex.forwarded.signal_rs = 0;
+    PIPELN.id_ex.forwarded.signal_rt = 0;
+    PIPELN.id_ex.forwarded.val_rs = 0;
+    PIPELN.id_ex.forwarded.val_rt = 0;
+	PIPELN.id_ex.inst.value = 0;
+	PIPELN.id_ex.inst.opcode = 0;
+	PIPELN.id_ex.inst.func_code = 0;
+	PIPELN.id_ex.inst.r_t.r_i.rs = 0;
+	PIPELN.id_ex.inst.r_t.r_i.rt = 0;
+	PIPELN.id_ex.inst.r_t.r_i.r_i.r.rd = 0;
+	PIPELN.id_ex.inst.r_t.r_i.r_i.imm = 0;
+	PIPELN.id_ex.inst.r_t.r_i.r_i.r.shamt = 0;
+	PIPELN.id_ex.inst.r_t.target = 0;
+
+    PIPELN.ex_mem.reg_rs = 0;
+    PIPELN.ex_mem.val_rs = 0;
+    PIPELN.ex_mem.reg_rt = 0;
+    PIPELN.ex_mem.val_rt = 0;
+    PIPELN.ex_mem.mem.signal = 0;
+    PIPELN.ex_mem.mem.address = 0;
+    PIPELN.ex_mem.mem.reg_rt = 0;
+    PIPELN.ex_mem.mem.val_rt = 0;
+    PIPELN.ex_mem.wb.signal = 0;
+    PIPELN.ex_mem.wb.reg_rd = 0;
+    PIPELN.ex_mem.wb.val_rd = 0;
+    PIPELN.ex_mem.pc = 0;
+	PIPELN.ex_mem.inst.value = 0;
+	PIPELN.ex_mem.inst.opcode = 0;
+	PIPELN.ex_mem.inst.func_code = 0;
+	PIPELN.ex_mem.inst.r_t.r_i.rs = 0;
+	PIPELN.ex_mem.inst.r_t.r_i.rt = 0;
+	PIPELN.ex_mem.inst.r_t.r_i.r_i.r.rd = 0;
+	PIPELN.ex_mem.inst.r_t.r_i.r_i.imm = 0;
+	PIPELN.ex_mem.inst.r_t.r_i.r_i.r.shamt = 0;
+	PIPELN.ex_mem.inst.r_t.target = 0;
+
+    PIPELN.mem_wb.signal = 0;
+    PIPELN.mem_wb.reg_rd = 0;
+    PIPELN.mem_wb.val_rd = 0;
+    PIPELN.mem_wb.pc = 0;
+	PIPELN.mem_wb.inst.value = 0;
+	PIPELN.mem_wb.inst.opcode = 0;
+	PIPELN.mem_wb.inst.func_code = 0;
+	PIPELN.mem_wb.inst.r_t.r_i.rs = 0;
+	PIPELN.mem_wb.inst.r_t.r_i.rt = 0;
+	PIPELN.mem_wb.inst.r_t.r_i.r_i.r.rd = 0;
+	PIPELN.mem_wb.inst.r_t.r_i.r_i.imm = 0;
+	PIPELN.mem_wb.inst.r_t.r_i.r_i.r.shamt = 0;
+	PIPELN.mem_wb.inst.r_t.target = 0;
+}
