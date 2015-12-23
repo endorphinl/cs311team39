@@ -41,7 +41,7 @@ void fetch()
     }
 }
 
-uint32_t decode(int no_bp_set)
+uint32_t decode(int no_bp_set, int forwarding_set)
 {
 /*
     printf("if_id------------------ \n");
@@ -54,10 +54,30 @@ uint32_t decode(int no_bp_set)
     //hazard unit
     uint32_t new_pc = CURRENT_STATE.PC + 4;
     instruction instr = PIPELN.if_id.inst;
-    if(PIPELN.id_ex.mem_read.signal == 1 && ((PIPELN.id_ex.reg_rt == instr.r_t.r_i.rs) || (PIPELN.id_ex.reg_rt == instr.r_t.r_i.rt)))
+    if(forwarding_set)
     {
-        new_pc = CURRENT_STATE.PC;
-        return new_pc;
+        if(PIPELN.id_ex.mem_read.signal == 1 && ((PIPELN.id_ex.reg_rt == instr.r_t.r_i.rs) || (PIPELN.id_ex.reg_rt == instr.r_t.r_i.rt)))
+        {
+            new_pc = CURRENT_STATE.PC;
+            return new_pc;
+        }
+    }
+    else
+    {
+        if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && (PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rs || PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rt))
+        {
+            new_pc = CURRENT_STATE.PC + 4;
+            flush(2);
+            STALLS = 1;
+            return new_pc;
+        }
+        else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && (PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs || PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rt))
+        {
+            new_pc = CURRENT_STATE.PC + 4;
+            flush(2);
+            STALLS = 2;
+            return new_pc;
+        }
     }
 
     if(PIPELN.id_ex.flushed)
@@ -75,56 +95,59 @@ uint32_t decode(int no_bp_set)
         else
             PIPELN.id_ex.mem_read.signal = 0;
 
-        //forwarding unit
-        //rs
-        PIPELN.id_ex.reg_rs = PIPELN.id_ex.inst.r_t.r_i.rs;
-        PIPELN.id_ex.val_rs = CURRENT_STATE.REGS[PIPELN.id_ex.reg_rs];
-        PIPELN.id_ex.reg_rt = PIPELN.id_ex.inst.r_t.r_i.rt;
-        PIPELN.id_ex.val_rt = CURRENT_STATE.REGS[PIPELN.id_ex.reg_rt];
+        if(forwarding_set)
+        {
+            //forwarding unit
+            //rs
+            PIPELN.id_ex.reg_rs = PIPELN.id_ex.inst.r_t.r_i.rs;
+            PIPELN.id_ex.val_rs = CURRENT_STATE.REGS[PIPELN.id_ex.reg_rs];
+            PIPELN.id_ex.reg_rt = PIPELN.id_ex.inst.r_t.r_i.rt;
+            PIPELN.id_ex.val_rt = CURRENT_STATE.REGS[PIPELN.id_ex.reg_rt];
 
-        //ex forwarding
-        if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && !(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs) && PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rs)
-        {
-            //mem_wb forwarding
-            PIPELN.id_ex.forwarded.signal_rs = 1;
-            PIPELN.id_ex.forwarded.val_rs = PIPELN.mem_wb.val_rd;
-        }
-        else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs)
-        {
-            //ex_mem forwarding
-            //printf("rs:ex_mem to ex triggered------------------------------------------------------------\n");
-            PIPELN.id_ex.forwarded.signal_rs = 1;
-            PIPELN.id_ex.forwarded.val_rs = PIPELN.ex_mem.wb.val_rd;
-            //printf("val_rs: 0x%08x \n", PIPELN.id_ex.forwarded.val_rs);
-        }
-        else
-            PIPELN.id_ex.forwarded.signal_rs = 0;
+            //ex forwarding
+            if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && !(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs) && PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rs)
+            {
+                //mem_wb forwarding
+                PIPELN.id_ex.forwarded.signal_rs = 1;
+                PIPELN.id_ex.forwarded.val_rs = PIPELN.mem_wb.val_rd;
+            }
+            else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs)
+            {
+                //ex_mem forwarding
+                //printf("rs:ex_mem to ex triggered------------------------------------------------------------\n");
+                PIPELN.id_ex.forwarded.signal_rs = 1;
+                PIPELN.id_ex.forwarded.val_rs = PIPELN.ex_mem.wb.val_rd;
+                //printf("val_rs: 0x%08x \n", PIPELN.id_ex.forwarded.val_rs);
+            }
+            else
+                PIPELN.id_ex.forwarded.signal_rs = 0;
 
-        //rt
-        if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && !(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rt) && PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rt)
-        {
-            //mem_wb forwarding
-            PIPELN.id_ex.forwarded.signal_rt = 1;
-            PIPELN.id_ex.forwarded.val_rt = PIPELN.mem_wb.val_rd;
-        }
-        else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rt)
-        {
-            //ex_mem forwarding
-            PIPELN.id_ex.forwarded.signal_rt = 1;
-            PIPELN.id_ex.forwarded.val_rt = PIPELN.ex_mem.wb.val_rd;
-        }
-        else
-            PIPELN.id_ex.forwarded.signal_rt = 0;
+            //rt
+            if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && !(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rt) && PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rt)
+            {
+                //mem_wb forwarding
+                PIPELN.id_ex.forwarded.signal_rt = 1;
+                PIPELN.id_ex.forwarded.val_rt = PIPELN.mem_wb.val_rd;
+            }
+            else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rt)
+            {
+                //ex_mem forwarding
+                PIPELN.id_ex.forwarded.signal_rt = 1;
+                PIPELN.id_ex.forwarded.val_rt = PIPELN.ex_mem.wb.val_rd;
+            }
+            else
+                PIPELN.id_ex.forwarded.signal_rt = 0;
 
-        //mem forwarding
-        if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && PIPELN.mem_wb.reg_rd == PIPELN.ex_mem.mem.reg_rt)
-        {
-            PIPELN.ex_mem.forwarded.signal = 1;
-            PIPELN.ex_mem.forwarded.val_rt = PIPELN.mem_wb.val_rd;
+            //mem forwarding
+            if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && PIPELN.mem_wb.reg_rd == PIPELN.ex_mem.mem.reg_rt)
+            {
+                PIPELN.ex_mem.forwarded.signal = 1;
+                PIPELN.ex_mem.forwarded.val_rt = PIPELN.mem_wb.val_rd;
+            }
         }
     }
 
-    if(instr.opcode == 2 || instr.opcode == 3)
+    if(instr.opcode == 2 || instr.opcode == 3) //j and jal
     {
         uint32_t target = instr.r_t.target << 2;
         new_pc = target;
@@ -132,7 +155,7 @@ uint32_t decode(int no_bp_set)
         return new_pc;
     }
 
-    if(instr.opcode == 0 && instr.func_code == 0x08)
+    if(instr.opcode == 0 && instr.func_code == 0x08) //jr
     {
         uint32_t val_rs;
         if(PIPELN.id_ex.forwarded.signal_rs)
