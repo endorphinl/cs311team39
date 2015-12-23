@@ -113,7 +113,7 @@
 instruction*	get_inst_info(uint32_t pc);
 //char*	get_inst_info(uint32_t pc);
 void        fetch();
-uint32_t    decode(int no_bp_set);
+uint32_t    decode(int no_bp_set, int forwarding_set);
 void        execute(int no_bp_set);
 uint32_t    memory();
 void        write_back();
