@@ -101,6 +101,13 @@ uint32_t fetch(int no_bp_set)
 
 void decode()
 {
+    printf("if_id------------------ \n");
+    printf("if_id.pc: 0x%08x \n", PIPELN.if_id.pc);
+    printf("if_id.flushed: %i \n", PIPELN.if_id.flushed);
+    printf("if_id.stall: %i \n", PIPELN.if_id.stall);
+    printf("if_id.proceed_and_stall: %i \n", PIPELN.if_id.proceed_and_stall);
+    printf("if_id.inst.opcode: %i \n", PIPELN.if_id.inst.opcode);
+    printf("if_id.inst.func_code: %i \n", PIPELN.if_id.inst.func_code);
     if(PIPELN.id_ex.flushed)
         PIPELN.id_ex.flushed = 0;
     else if(PIPELN.if_id.proceed_and_stall == 0 && PIPELN.if_id.stall > 0)
@@ -111,7 +118,8 @@ void decode()
     }
     else
     {
-        PIPELN.if_id.proceed_and_stall -= 1; //reset proceed_and_stall (nobp and jumps)
+        if(PIPELN.if_id.proceed_and_stall > 0)
+            PIPELN.if_id.proceed_and_stall -= 1; //reset proceed_and_stall (nobp and jumps)
 
         PIPELN.id_ex.inst = PIPELN.if_id.inst;
         //PIPELN.id_ex.inst = parsing_instr(PIPELN.if_id.binary_inst, (PIPELN.if_id.pc - MEM_TEXT_START) >> 2);
@@ -162,16 +170,16 @@ void decode()
 
 uint32_t execute(int no_bp_set)
 {
-    printf("id_ex \n");
-    //printf("pc: 0x%08x \n", PIPELN.id_ex.pc);
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    printf("id_ex------------------ \n");
+    printf("pc: 0x%08x \n", PIPELN.id_ex.pc);
+    //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     printf("flushed: %i \n", PIPELN.id_ex.flushed);
     printf("reg_rs: 0x%08x \n", PIPELN.id_ex.reg_rs);
     printf("val_rs: 0x%08x \n", PIPELN.id_ex.val_rs);
     printf("reg_rt: 0x%08x \n", PIPELN.id_ex.reg_rt);
     printf("val_rt: 0x%08x \n", PIPELN.id_ex.val_rt);
-    printf("opcode: 0x%06x \n", PIPELN.id_ex.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.id_ex.inst.func_code);
+    printf("opcode: %i \n", PIPELN.id_ex.inst.opcode);
+    printf("func_code: %i \n", PIPELN.id_ex.inst.func_code);
     PIPELN.ex_mem.inst = PIPELN.id_ex.inst;
     PIPELN.ex_mem.pc = PIPELN.id_ex.pc;
 
@@ -396,21 +404,20 @@ uint32_t execute(int no_bp_set)
             //mem_write_32(CURRENT_STATE.REGS[rs] + sign_ext_imm, CURRENT_STATE.REGS[rt]);
         }
     }
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
-    return PIPELN.id_ex.pc + 4;
+    return CURRENT_STATE.PC + 4;
 }
 
 void memory()
 {
-    printf("ex_mem \n");
-    //printf("pc: 0x%08x \n", PIPELN.ex_mem.pc);
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    printf("ex_mem--------------------- \n");
+    printf("pc: 0x%08x \n", PIPELN.ex_mem.pc);
+    //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     printf("reg_rs: 0x%08x \n", PIPELN.ex_mem.reg_rs);
     printf("val_rs: 0x%08x \n", PIPELN.ex_mem.val_rs);
     printf("reg_rt: 0x%08x \n", PIPELN.ex_mem.reg_rt);
     printf("val_rt: 0x%08x \n", PIPELN.ex_mem.val_rt);
-    printf("opcode: 0x%06x \n", PIPELN.ex_mem.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.ex_mem.inst.func_code);
+    printf("opcode: %i \n", PIPELN.ex_mem.inst.opcode);
+    printf("func_code: %i \n", PIPELN.ex_mem.inst.func_code);
     if(PIPELN.ex_mem.mem.signal)
     {
         if(PIPELN.ex_mem.wb.signal) //lw
@@ -430,25 +437,23 @@ void memory()
     }
     PIPELN.mem_wb.inst = PIPELN.ex_mem.inst;
     PIPELN.mem_wb.pc = PIPELN.ex_mem.pc;
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
 }
 
 void write_back()
 {
-    printf("mem_wb \n");
-    //printf("pc: 0x%08x \n", PIPELN.mem_wb.pc);
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    printf("mem_wb------------------- \n");
+    printf("pc: 0x%08x \n", PIPELN.mem_wb.pc);
+    //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     printf("signal: %i \n", PIPELN.mem_wb.signal);
     printf("reg_rd: 0x%08x \n", PIPELN.mem_wb.reg_rd);
     printf("val_rd: 0x%08x \n", PIPELN.mem_wb.val_rd);
-    printf("opcode: 0x%06x \n", PIPELN.mem_wb.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.mem_wb.inst.func_code);
+    printf("opcode: %i \n", PIPELN.mem_wb.inst.opcode);
+    printf("func_code: %i \n", PIPELN.mem_wb.inst.func_code);
     if(PIPELN.mem_wb.signal)
     {
-        printf("write_back() if entered!!!");
+        //printf("write_back() if entered!!!");
         CURRENT_STATE.REGS[PIPELN.mem_wb.reg_rd] = PIPELN.mem_wb.val_rd;
     }
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
 }
 
 void flush()

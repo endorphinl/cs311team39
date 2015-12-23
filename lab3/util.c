@@ -178,27 +178,29 @@ void mem_write_32(uint32_t address, uint32_t value)
 /*                                                             */
 /***************************************************************/
 void cycle(int no_bp_set) {
-    printf("cycle \n\n");
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    //printf("cycle \n\n");
+    //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     CURRENT_STATE.PIPE[0] = CURRENT_STATE.PC;
     CURRENT_STATE.PIPE[1] = PIPELN.if_id.pc;
     CURRENT_STATE.PIPE[2] = PIPELN.id_ex.pc;
     CURRENT_STATE.PIPE[3] = PIPELN.ex_mem.pc;
     CURRENT_STATE.PIPE[4] = PIPELN.mem_wb.pc;
-    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     write_back();
     memory();
     uint32_t temp_pc_execute = execute(no_bp_set);
+    printf("temp_pc_execute: 0x%08x \n", temp_pc_execute);
     decode();
     uint32_t temp_pc_fetch = fetch(no_bp_set);
+    printf("temp_pc_fetch: 0x%08x \n", temp_pc_fetch);
     INSTRUCTION_COUNT++;
 
-    if(CURRENT_STATE.PC + 4 != temp_pc_execute)
+    if(temp_pc_execute - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_execute)
     {
         //if execute has jump or branch taken
         CURRENT_STATE.PC = temp_pc_execute;
     }
-    else if(CURRENT_STATE.PC + 4 != temp_pc_fetch)
+    else if(temp_pc_fetch - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_fetch)
     {
         //if execute wants to proceed but fetch wants to stall (hazards detected)
         CURRENT_STATE.PC = temp_pc_fetch;
@@ -320,6 +322,8 @@ void pdump() {
 	    printf("|");
     }
     printf("\n\n");
+
+/*
     printf("if_id \n");
     printf("if_id.pc: 0x%08x \n", PIPELN.if_id.pc);
     printf("if_id.flushed: %i \n", PIPELN.if_id.flushed);
@@ -328,7 +332,6 @@ void pdump() {
     printf("if_id.inst.opcode: 0x%06x \n", PIPELN.if_id.inst.opcode);
     printf("if_id.inst.func_code: 0x%06x \n", PIPELN.if_id.inst.func_code);
 
-/*
     print("id_ex \n");
     printf("pc: 0x%08x \n", PIPELN.id_ex.pc);
     printf("flushed: %i \n", PIPELN.id_ex.flushed);
