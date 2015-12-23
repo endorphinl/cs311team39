@@ -126,6 +126,7 @@ int main(int argc, char *argv[]) {
     int num_inst_set = 0;
     int pipe_dump_set = 0;
     int no_bp_set = 0;
+    int forwarding_set = 0;
 
     /* Error Checking */
     if (argc < 2)
@@ -157,6 +158,8 @@ int main(int argc, char *argv[]) {
 	    pipe_dump_set = 1;
     else if(strcmp(argv[count], "-nobp") == 0)
         no_bp_set = 1;
+    else if(strcmp(argv[count], "-f") == 0)
+        forwarding_set = 1;
 	else{
 	    printf("Error: usage: %s [-nobp] [-f] [-m addr1:addr2] [-d] [-p] [-n num_instr] inputBinary\n", argv[0]);
 	    //You must add nobp and f option yourself
@@ -169,15 +172,17 @@ int main(int argc, char *argv[]) {
 
     //printf("170 pc: 0x%08x \n", CURRENT_STATE.PC);
     if(debug_set){
-	printf("Simulating for %d cycles...\n\n", i);
+	printf("Simulating for %d instructions...\n\n", i);
 
-        for(; i > 0; i--){
+        while(i > 0){
             if (RUN_BIT == FALSE){
                 printf("Simulator halted\n\n");
             break;
             }
     //printf("179 pc: 0x%08x \n", CURRENT_STATE.PC);
-            cycle(no_bp_set);
+            int committed = cycle(no_bp_set, forwarding_set);
+            if(committed)
+                i--;
 
             if(pipe_dump_set) pdump();
             rdump();	
@@ -185,7 +190,7 @@ int main(int argc, char *argv[]) {
         }
     }
     else{
-        run(i, no_bp_set);
+        run(i, no_bp_set, forwarding_set);
         rdump();
 
         if(mem_dump_set) mdump(addr1, addr2);

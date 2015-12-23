@@ -34,6 +34,7 @@ int INSTRUCTION_COUNT;
 instruction *INST_INFO;
 int NUM_INST;
 pipeln PIPELN;
+int STALLS = 0;
 
 /***************************************************************/
 /*                                                             */
@@ -177,7 +178,7 @@ void mem_write_32(uint32_t address, uint32_t value)
 /* Purpose   : Execute a cycle                                 */
 /*                                                             */
 /***************************************************************/
-void cycle(int no_bp_set) {
+int cycle(int no_bp_set, int forwarding_set) {
     //printf("cycle \n\n");
     //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     CURRENT_STATE.PIPE[0] = CURRENT_STATE.PC;
@@ -187,26 +188,30 @@ void cycle(int no_bp_set) {
     CURRENT_STATE.PIPE[4] = PIPELN.mem_wb.pc;
     //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     write_back();
-    memory();
-    uint32_t temp_pc_execute = execute(no_bp_set);
-    printf("temp_pc_execute: 0x%08x \n", temp_pc_execute);
-    decode();
-    uint32_t temp_pc_fetch = fetch(no_bp_set);
-    printf("temp_pc_fetch: 0x%08x \n", temp_pc_fetch);
+    uint32_t temp_pc_memory = memory();
+    //printf("temp_pc_memory: 0x%08x \n", temp_pc_memory);
+    execute(no_bp_set);
+    uint32_t temp_pc_decode = decode();
+    //printf("temp_pc_decode: 0x%08x \n", temp_pc_decode);
+    fetch(no_bp_set);
     INSTRUCTION_COUNT++;
 
-    if(temp_pc_execute - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_execute)
+    if(temp_pc_memory - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_memory)
     {
-        //if execute has jump or branch taken
-        CURRENT_STATE.PC = temp_pc_execute;
+        //if memory has jump or branch taken
+        CURRENT_STATE.PC = temp_pc_memory;
     }
-    else if(temp_pc_fetch - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_fetch)
+    else if(temp_pc_decode - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_decode)
     {
-        //if execute wants to proceed but fetch wants to stall (hazards detected)
-        CURRENT_STATE.PC = temp_pc_fetch;
+        //if memory wants to proceed but decode wants to stall (hazards detected)
+        CURRENT_STATE.PC = temp_pc_decode;
     }
     else
         CURRENT_STATE.PC += 4;
+
+    if(CURRENT_STATE.PIPE[4])
+        return 1;
+    return 0;
     //CURRENT_STATE.PC += 4;
     //commit_to_latches();
 
@@ -223,7 +228,7 @@ void cycle(int no_bp_set) {
 /* Purpose   : Simulate MIPS for n cycles                      */
 /*                                                             */
 /***************************************************************/
-void run(int num_cycles, int no_bp_set) {
+void run(int num_cycles, int no_bp_set, int forwarding_set) {
     int i;
 
     if (RUN_BIT == FALSE) {
@@ -231,13 +236,15 @@ void run(int num_cycles, int no_bp_set) {
 	return;
     }
 
-    printf("Simulating for %d cycles...\n\n", num_cycles);
-    for (i = 0; i < num_cycles; i++) {
-	if (RUN_BIT == FALSE) {
-	    printf("Simulator halted\n\n");
-	    break;
-	}
-	cycle(no_bp_set);
+    printf("Simulating for %d instructions...\n\n", num_cycles);
+    while(num_cycles > 0) {
+        if (RUN_BIT == FALSE) {
+            printf("Simulator halted\n\n");
+            break;
+        }
+        int committed = cycle(no_bp_set, forwarding_set);
+        if(committed)
+            num_cycles--;
     }
 }
 
@@ -248,7 +255,7 @@ void run(int num_cycles, int no_bp_set) {
 /* Purpose   : Simulate MIPS until HALTed                      */
 /*                                                             */
 /***************************************************************/
-void go(int no_bp_set) {
+void go(int no_bp_set, forwarding_set) {
     if (RUN_BIT == FALSE) {
 	printf("Can't simulate, Simulator is halted\n\n");
 	return;
@@ -256,7 +263,9 @@ void go(int no_bp_set) {
 
     printf("Simulating...\n\n");
     while (RUN_BIT)
-	cycle(no_bp_set);
+    {
+        int committed = cycle(no_bp_set, forwarding_set);
+    }
     printf("Simulator halted\n\n");
 }
 
@@ -404,8 +413,6 @@ void init_inst_info()
 void init_pipeline_latches()
 {
     PIPELN.if_id.flushed = 0;
-    PIPELN.if_id.stall = 0;
-    PIPELN.if_id.proceed_and_stall = 0;
     PIPELN.if_id.pc = 0;
     //PIPELN.if_id.binary_inst = 0;
 	PIPELN.if_id.inst.opcode = 0;
@@ -450,6 +457,9 @@ void init_pipeline_latches()
     PIPELN.ex_mem.wb.signal = 0;
     PIPELN.ex_mem.wb.reg_rd = 0;
     PIPELN.ex_mem.wb.val_rd = 0;
+    PIPELN.ex_mem.update_pc = 0;
+    PIPELN.ex_mem.updated_pc = 0;
+    PIPELN.ex_mem.updated_flush = 2;
     PIPELN.ex_mem.pc = 0;
 	PIPELN.ex_mem.inst.value = 0;
 	PIPELN.ex_mem.inst.opcode = 0;

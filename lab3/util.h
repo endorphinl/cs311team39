@@ -69,11 +69,8 @@ typedef struct inst_s {
 typedef struct pipelns {
     struct {
         int flushed;
-        int stall;
-        int proceed_and_stall;
         uint32_t pc;
         instruction inst;
-        //char *binary_inst;
     } if_id;
 
     struct {
@@ -119,6 +116,10 @@ typedef struct pipelns {
             uint32_t val_rd;
         } wb;
 
+        int update_pc;
+        uint32_t updated_pc;
+        int updated_flush;
+
         uint32_t pc;
         instruction inst;
     } ex_mem;
@@ -150,6 +151,7 @@ extern int NUM_INST;
 
 /* For Pipeline Latches */
 extern pipeln PIPELN;
+extern int STALLS;
 
 /* For Memory Regions */
 extern mem_region_t MEM_REGIONS[2];
@@ -163,9 +165,9 @@ char**		str_split(char *a_str, const char a_delim);
 int		fromBinary(char *s);
 uint32_t	mem_read_32(uint32_t address);
 void		mem_write_32(uint32_t address, uint32_t value);
-void		cycle(int no_bp_set);
-void		run(int num_cycles, int no_bp_set);
-void		go(int no_bp_set);
+int		    cycle(int no_bp_set, int forwarding_set);
+void		run(int num_cycles, int no_bp_set, int forwarding_set);
+void		go(int no_bp_set, int forwarding_set);
 void		mdump(int start, int stop);
 void		rdump();
 void		init_memory();
