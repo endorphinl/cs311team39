@@ -15,6 +15,52 @@
 int text_size;
 int data_size;
 
+instruction parsing_instr(const char *buffer, const int index) {
+    instruction instr = {0, };
+    
+    char buffer1[32];
+    strncpy(buffer1, buffer, 32);
+    uint32_t buf_encoding = fromBinary(buffer1);
+    instr.value = buf_encoding;
+    short opcode = buf_encoding >> 26; 
+    instr.opcode = opcode;
+
+    if(opcode == 0){ 
+        short func_code = (buf_encoding << 26) >> 26; 
+        unsigned char rs = (buf_encoding << 6) >> 27; 
+        unsigned char rt = (buf_encoding << 11) >> 27; 
+        unsigned char rd = (buf_encoding << 16) >> 27; 
+        unsigned char sa = (buf_encoding << 21) >> 27; 
+    
+    instr.func_code = func_code;
+        instr.r_t.r_i.rs = rs; 
+        instr.r_t.r_i.rt = rt; 
+        instr.r_t.r_i.r_i.r.rd = rd; 
+        instr.r_t.r_i.r_i.r.shamt = sa; 
+    } else if (opcode == 2 || opcode == 3){ 
+        uint32_t target = (buf_encoding << 6) >> 6;
+
+    instr.r_t.target = target;
+    } else {
+        unsigned char rs = (buf_encoding << 6) >> 27; 
+    unsigned char rt = (buf_encoding << 11) >> 27; 
+    short imm = (buf_encoding << 16) >> 16; 
+       
+    instr.r_t.r_i.rs = rs; 
+    instr.r_t.r_i.rt = rt; 
+    instr.r_t.r_i.r_i.imm = imm;
+    }   
+    mem_write_32(MEM_TEXT_START + index, buf_encoding);
+    return instr;
+}
+
+void parsing_data(const char *buffer, const int index) {
+    uint32_t value = fromBinary(buffer);
+    uint32_t addr = MEM_DATA_START + index;
+
+    mem_write_32(addr, value);
+}
+/*
 instruction parsing_instr(const char *buffer, const int index)
 {
     instruction instr;
@@ -83,6 +129,7 @@ void parsing_data(const char *buffer, const int index)
     word = fromBinary(buffer);
     mem_write_32(MEM_DATA_START + index, word);
 }
+*/
 
 void print_parse_result()
 {

@@ -72,13 +72,14 @@ typedef struct pipelns {
         int stall;
         int proceed_and_stall;
         uint32_t pc;
-        char *binary_inst;
+        instruction inst;
+        //char *binary_inst;
     } if_id;
 
     struct {
         int flushed;
         uint32_t pc;
-        instruction *inst;
+        instruction inst;
 
         unsigned char reg_rs;
         uint32_t val_rs;
@@ -91,7 +92,8 @@ typedef struct pipelns {
         } mem_read;
 
         struct {
-            int signal;
+            int signal_rs;
+            int signal_rt;
             uint32_t val_rs;
             uint32_t val_rt;
         } forwarded;
@@ -118,7 +120,7 @@ typedef struct pipelns {
         } wb;
 
         uint32_t pc;
-        instruction *inst;
+        instruction inst;
     } ex_mem;
 
     struct {
@@ -127,7 +129,7 @@ typedef struct pipelns {
         uint32_t val_rd;
 
         uint32_t pc;
-        instruction *inst;
+        instruction inst;
     } mem_wb;
 } pipeln;
 
@@ -143,6 +145,7 @@ extern CPU_State CURRENT_STATE;
 
 /* For Instructions */
 extern instruction *INST_INFO;
+//extern char **INST_INFO;
 extern int NUM_INST;
 
 /* For Pipeline Latches */

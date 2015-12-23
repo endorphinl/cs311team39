@@ -70,8 +70,8 @@ void load_program(char *program_filename) {
 	else
 	{
 	    if(ii < text_size){
-            //INST_INFO[text_index++] = parsing_instr(buffer, ii);
-            INST_INFO[text_index++] = buffer;
+            INST_INFO[text_index++] = parsing_instr(buffer, ii);
+            //INST_INFO[text_index++] = buffer;
 	    }
 	    else if(ii < text_size + data_size){
             parsing_data(buffer, ii-text_size);
@@ -167,6 +167,7 @@ int main(int argc, char *argv[]) {
 
     if(num_inst_set) i = num_inst;
 
+    printf("170 pc: 0x%08x \n", CURRENT_STATE.PC);
     if(debug_set){
 	printf("Simulating for %d cycles...\n\n", i);
 
@@ -175,6 +176,7 @@ int main(int argc, char *argv[]) {
                 printf("Simulator halted\n\n");
             break;
             }
+    printf("179 pc: 0x%08x \n", CURRENT_STATE.PC);
             cycle(no_bp_set);
 
             if(pipe_dump_set) pdump();

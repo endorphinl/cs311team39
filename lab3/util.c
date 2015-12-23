@@ -33,6 +33,7 @@ int INSTRUCTION_COUNT;
 /***************************************************************/
 instruction *INST_INFO;
 int NUM_INST;
+pipeln PIPELN;
 
 /***************************************************************/
 /*                                                             */
@@ -177,6 +178,14 @@ void mem_write_32(uint32_t address, uint32_t value)
 /*                                                             */
 /***************************************************************/
 void cycle(int no_bp_set) {
+    printf("cycle \n\n");
+    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+    CURRENT_STATE.PIPE[0] = CURRENT_STATE.PC;
+    CURRENT_STATE.PIPE[1] = PIPELN.if_id.pc;
+    CURRENT_STATE.PIPE[2] = PIPELN.id_ex.pc;
+    CURRENT_STATE.PIPE[3] = PIPELN.ex_mem.pc;
+    CURRENT_STATE.PIPE[4] = PIPELN.mem_wb.pc;
+    printf("pc: 0x%08x \n", CURRENT_STATE.PC);
     write_back();
     memory();
     uint32_t temp_pc_execute = execute(no_bp_set);
@@ -245,7 +254,7 @@ void go(int no_bp_set) {
 
     printf("Simulating...\n\n");
     while (RUN_BIT)
-	cycle(int no_bp_set);
+	cycle(no_bp_set);
     printf("Simulator halted\n\n");
 }
 
@@ -311,6 +320,42 @@ void pdump() {
 	    printf("|");
     }
     printf("\n\n");
+    printf("if_id \n");
+    printf("if_id.pc: 0x%08x \n", PIPELN.if_id.pc);
+    printf("if_id.flushed: %i \n", PIPELN.if_id.flushed);
+    printf("if_id.stall: %i \n", PIPELN.if_id.stall);
+    printf("if_id.proceed_and_stall: %i \n", PIPELN.if_id.proceed_and_stall);
+    printf("if_id.inst.opcode: 0x%06x \n", PIPELN.if_id.inst.opcode);
+    printf("if_id.inst.func_code: 0x%06x \n", PIPELN.if_id.inst.func_code);
+
+/*
+    print("id_ex \n");
+    printf("pc: 0x%08x \n", PIPELN.id_ex.pc);
+    printf("flushed: %i \n", PIPELN.id_ex.flushed);
+    printf("reg_rs: 0x%08x \n", PIPELN.id_ex.reg_rs);
+    printf("val_rs: 0x%08x \n", PIPELN.id_ex.val_rs);
+    printf("reg_rt: 0x%08x \n", PIPELN.id_ex.reg_rt);
+    printf("val_rt: 0x%08x \n", PIPELN.id_ex.val_rt);
+    printf("opcode: 0x%06x \n", PIPELN.id_ex.inst.opcode);
+    printf("func_code: 0x%06x \n", PIPELN.id_ex.inst.func_code);
+
+    print("ex_mem \n");
+    printf("pc: 0x%08x \n", PIPELN.ex_mem.pc);
+    printf("reg_rs: 0x%08x \n", PIPELN.ex_mem.reg_rs);
+    printf("val_rs: 0x%08x \n", PIPELN.ex_mem.val_rs);
+    printf("reg_rt: 0x%08x \n", PIPELN.ex_mem.reg_rt);
+    printf("val_rt: 0x%08x \n", PIPELN.ex_mem.val_rt);
+    printf("opcode: 0x%06x \n", PIPELN.ex_mem.inst.opcode);
+    printf("func_code: 0x%06x \n", PIPELN.ex_mem.inst.func_code);
+
+    print("mem_wb \n");
+    printf("pc: 0x%08x \n", PIPELN.mem_wb.pc);
+    printf("signal: %i \n", PIPELN.mem_wb.signal);
+    printf("reg_rd: 0x%08x \n", PIPELN.mem_wb.reg_rd);
+    printf("val_rd: 0x%08x \n", PIPELN.mem_wb.val_rd);
+    printf("opcode: 0x%06x \n", PIPELN.mem_wb.inst.opcode);
+    printf("func_code: 0x%06x \n", PIPELN.mem_wb.inst.func_code);
+*/
 }
 
 /***************************************************************/
@@ -356,8 +401,19 @@ void init_inst_info()
 void init_pipeline_latches()
 {
     PIPELN.if_id.flushed = 0;
+    PIPELN.if_id.stall = 0;
+    PIPELN.if_id.proceed_and_stall = 0;
     PIPELN.if_id.pc = 0;
-    PIPELN.if_id.binary_inst = 0;
+    //PIPELN.if_id.binary_inst = 0;
+	PIPELN.if_id.inst.opcode = 0;
+	PIPELN.if_id.inst.func_code = 0;
+	PIPELN.if_id.inst.r_t.r_i.rs = 0;
+	PIPELN.if_id.inst.r_t.r_i.rt = 0;
+	PIPELN.if_id.inst.r_t.r_i.r_i.r.rd = 0;
+	PIPELN.if_id.inst.r_t.r_i.r_i.imm = 0;
+	PIPELN.if_id.inst.r_t.r_i.r_i.r.shamt = 0;
+	PIPELN.if_id.inst.r_t.target = 0;
+
 
     PIPELN.id_ex.flushed = 0;
     PIPELN.id_ex.pc = 0;
@@ -365,6 +421,7 @@ void init_pipeline_latches()
     PIPELN.id_ex.val_rs = 0;
     PIPELN.id_ex.reg_rt = 0;
     PIPELN.id_ex.val_rt = 0;
+    PIPELN.id_ex.mem_read.signal = 0;
     PIPELN.id_ex.forwarded.signal_rs = 0;
     PIPELN.id_ex.forwarded.signal_rt = 0;
     PIPELN.id_ex.forwarded.val_rs = 0;

@@ -110,8 +110,8 @@
 }
 
 /* functions */
-//instruction*	get_inst_info(uint32_t pc);
-char*	get_inst_info(uint32_t pc);
+instruction*	get_inst_info(uint32_t pc);
+//char*	get_inst_info(uint32_t pc);
 uint32_t    fetch(int no_bp_set);
 void        decode();
 uint32_t    execute(int no_bp_set);
