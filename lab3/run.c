@@ -30,7 +30,10 @@ void fetch()
     if(PIPELN.if_id.flushed)
         PIPELN.if_id.flushed = 0;
     else if(STALLS > 0)
+    {
+        CURRENT_STATE.PIPE[0] = 0;
         STALLS -= 1;
+    }
     else
     {
         PIPELN.if_id.inst = INST_INFO[(CURRENT_STATE.PC - MEM_TEXT_START) >> 2];
@@ -40,12 +43,10 @@ void fetch()
 
 uint32_t decode(int no_bp_set)
 {
-    /*
+/*
     printf("if_id------------------ \n");
     printf("if_id.pc: 0x%08x \n", PIPELN.if_id.pc);
     printf("if_id.flushed: %i \n", PIPELN.if_id.flushed);
-    printf("if_id.stall: %i \n", PIPELN.if_id.stall);
-    printf("if_id.proceed_and_stall: %i \n", PIPELN.if_id.proceed_and_stall);
     printf("if_id.inst.opcode: %i \n", PIPELN.if_id.inst.opcode);
     printf("if_id.inst.func_code: %i \n", PIPELN.if_id.inst.func_code);
     */
@@ -60,7 +61,10 @@ uint32_t decode(int no_bp_set)
     }
 
     if(PIPELN.id_ex.flushed)
+    {
         PIPELN.id_ex.flushed = 0;
+        return new_pc;
+    }
     else
     {
         PIPELN.id_ex.inst = PIPELN.if_id.inst;
@@ -78,6 +82,7 @@ uint32_t decode(int no_bp_set)
         PIPELN.id_ex.reg_rt = PIPELN.id_ex.inst.r_t.r_i.rt;
         PIPELN.id_ex.val_rt = CURRENT_STATE.REGS[PIPELN.id_ex.reg_rt];
 
+        //ex forwarding
         if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && !(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs) && PIPELN.mem_wb.reg_rd == PIPELN.id_ex.reg_rs)
         {
             //mem_wb forwarding
@@ -110,6 +115,13 @@ uint32_t decode(int no_bp_set)
         }
         else
             PIPELN.id_ex.forwarded.signal_rt = 0;
+
+        //mem forwarding
+        if(PIPELN.mem_wb.signal == 1 && PIPELN.mem_wb.reg_rd != 0 && PIPELN.mem_wb.reg_rd == PIPELN.ex_mem.mem.reg_rt)
+        {
+            PIPELN.ex_mem.forwarded.signal = 1;
+            PIPELN.ex_mem.forwarded.val_rt = PIPELN.mem_wb.val_rd;
+        }
     }
 
     if(instr.opcode == 2 || instr.opcode == 3)
@@ -137,7 +149,7 @@ uint32_t decode(int no_bp_set)
     {
         if(no_bp_set)   //bp is not present
         {
-            new_pc = CURRENT_STATE.PC;
+            new_pc = CURRENT_STATE.PC + 4;
             flush(1);
             STALLS = 2;
             return new_pc;
@@ -151,6 +163,8 @@ uint32_t decode(int no_bp_set)
             return new_pc;
         }
     }
+    if(STALLS)
+        return CURRENT_STATE.PC; // new_pc - 4
     return new_pc;
 }
 
@@ -172,7 +186,7 @@ void execute(int no_bp_set)
     PIPELN.ex_mem.pc = PIPELN.id_ex.pc;
 
     instruction instr = PIPELN.id_ex.inst;
-    if(instr.opcode == 0 && instr.func_code == 0 && instr.r_t.r_i.rs == 0){
+    if(instr.opcode == 0 && instr.func_code == 0 && instr.r_t.r_i.rt == 0){
         PIPELN.ex_mem.wb.signal = 0;
         PIPELN.ex_mem.mem.signal = 0;
     }
@@ -234,7 +248,7 @@ void execute(int no_bp_set)
         {
             PIPELN.ex_mem.wb.signal = 1;
             PIPELN.ex_mem.wb.reg_rd = 31;
-            PIPELN.ex_mem.wb.val_rd = CURRENT_STATE.PC + 4;
+            PIPELN.ex_mem.wb.val_rd = PIPELN.id_ex.pc + 4;
         }
         else
             PIPELN.ex_mem.wb.signal = 0;
@@ -394,6 +408,7 @@ void execute(int no_bp_set)
             PIPELN.ex_mem.mem.signal = 1;
 
             uint32_t sign_ext_imm = sign_extend(imm);
+            PIPELN.ex_mem.mem.reg_rt = PIPELN.id_ex.reg_rt;
             PIPELN.ex_mem.mem.val_rt = val_rt;
             PIPELN.ex_mem.mem.address = val_rs + sign_ext_imm;
 
@@ -418,6 +433,12 @@ uint32_t memory()
 
     uint32_t new_pc = CURRENT_STATE.PC + 4;
 
+    uint32_t val_rt;
+    if(PIPELN.ex_mem.forwarded.signal)
+        val_rt = PIPELN.ex_mem.forwarded.val_rt;
+    else
+        val_rt = PIPELN.ex_mem.mem.val_rt;
+
     if(PIPELN.ex_mem.mem.signal)
     {
         if(PIPELN.ex_mem.wb.signal) //lw
@@ -427,7 +448,7 @@ uint32_t memory()
             PIPELN.mem_wb.val_rd = mem_read_32(PIPELN.ex_mem.mem.address);
         }
         else                        //sw
-            mem_write_32(PIPELN.ex_mem.mem.address, PIPELN.ex_mem.mem.val_rt);
+            mem_write_32(PIPELN.ex_mem.mem.address, val_rt);
     }
     else
     {

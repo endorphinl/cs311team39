@@ -120,6 +120,11 @@ typedef struct pipelns {
         uint32_t updated_pc;
         int updated_flush;
 
+        struct {
+            int signal;
+            uint32_t val_rt;
+        } forwarded;
+
         uint32_t pc;
         instruction inst;
     } ex_mem;

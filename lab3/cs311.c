@@ -188,6 +188,7 @@ int main(int argc, char *argv[]) {
             rdump();	
             if(mem_dump_set) mdump(addr1, addr2);
         }
+        printf("Simulator halted\n\n");
     }
     else{
         run(i, no_bp_set, forwarding_set);

@@ -191,9 +191,9 @@ int cycle(int no_bp_set, int forwarding_set) {
     uint32_t temp_pc_memory = memory();
     //printf("temp_pc_memory: 0x%08x \n", temp_pc_memory);
     execute(no_bp_set);
-    uint32_t temp_pc_decode = decode();
+    uint32_t temp_pc_decode = decode(no_bp_set);
     //printf("temp_pc_decode: 0x%08x \n", temp_pc_decode);
-    fetch(no_bp_set);
+    fetch();
     INSTRUCTION_COUNT++;
 
     if(temp_pc_memory - 4 != 0 && CURRENT_STATE.PC + 4 != temp_pc_memory)
@@ -331,43 +331,6 @@ void pdump() {
 	    printf("|");
     }
     printf("\n\n");
-
-/*
-    printf("if_id \n");
-    printf("if_id.pc: 0x%08x \n", PIPELN.if_id.pc);
-    printf("if_id.flushed: %i \n", PIPELN.if_id.flushed);
-    printf("if_id.stall: %i \n", PIPELN.if_id.stall);
-    printf("if_id.proceed_and_stall: %i \n", PIPELN.if_id.proceed_and_stall);
-    printf("if_id.inst.opcode: 0x%06x \n", PIPELN.if_id.inst.opcode);
-    printf("if_id.inst.func_code: 0x%06x \n", PIPELN.if_id.inst.func_code);
-
-    print("id_ex \n");
-    printf("pc: 0x%08x \n", PIPELN.id_ex.pc);
-    printf("flushed: %i \n", PIPELN.id_ex.flushed);
-    printf("reg_rs: 0x%08x \n", PIPELN.id_ex.reg_rs);
-    printf("val_rs: 0x%08x \n", PIPELN.id_ex.val_rs);
-    printf("reg_rt: 0x%08x \n", PIPELN.id_ex.reg_rt);
-    printf("val_rt: 0x%08x \n", PIPELN.id_ex.val_rt);
-    printf("opcode: 0x%06x \n", PIPELN.id_ex.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.id_ex.inst.func_code);
-
-    print("ex_mem \n");
-    printf("pc: 0x%08x \n", PIPELN.ex_mem.pc);
-    printf("reg_rs: 0x%08x \n", PIPELN.ex_mem.reg_rs);
-    printf("val_rs: 0x%08x \n", PIPELN.ex_mem.val_rs);
-    printf("reg_rt: 0x%08x \n", PIPELN.ex_mem.reg_rt);
-    printf("val_rt: 0x%08x \n", PIPELN.ex_mem.val_rt);
-    printf("opcode: 0x%06x \n", PIPELN.ex_mem.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.ex_mem.inst.func_code);
-
-    print("mem_wb \n");
-    printf("pc: 0x%08x \n", PIPELN.mem_wb.pc);
-    printf("signal: %i \n", PIPELN.mem_wb.signal);
-    printf("reg_rd: 0x%08x \n", PIPELN.mem_wb.reg_rd);
-    printf("val_rd: 0x%08x \n", PIPELN.mem_wb.val_rd);
-    printf("opcode: 0x%06x \n", PIPELN.mem_wb.inst.opcode);
-    printf("func_code: 0x%06x \n", PIPELN.mem_wb.inst.func_code);
-*/
 }
 
 /***************************************************************/
@@ -412,6 +375,7 @@ void init_inst_info()
 
 void init_pipeline_latches()
 {
+    STALLS = 0;
     PIPELN.if_id.flushed = 0;
     PIPELN.if_id.pc = 0;
     //PIPELN.if_id.binary_inst = 0;
@@ -459,7 +423,9 @@ void init_pipeline_latches()
     PIPELN.ex_mem.wb.val_rd = 0;
     PIPELN.ex_mem.update_pc = 0;
     PIPELN.ex_mem.updated_pc = 0;
-    PIPELN.ex_mem.updated_flush = 2;
+    PIPELN.ex_mem.updated_flush = 0;
+    PIPELN.ex_mem.forwarded.signal = 0;
+    PIPELN.ex_mem.forwarded.val_rt = 0;
     PIPELN.ex_mem.pc = 0;
 	PIPELN.ex_mem.inst.value = 0;
 	PIPELN.ex_mem.inst.opcode = 0;
