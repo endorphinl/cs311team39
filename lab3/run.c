@@ -31,7 +31,7 @@ instruction* get_inst_info(uint32_t pc)
 }
 */
 
-void fetch()
+uint32_t fetch(int no_bp_set)
 {
     if(pipeln.if_id.flushed)
         pipeln.if_id.flushed = 0;
@@ -46,23 +46,67 @@ void fetch()
 
         if(pipeln.id_ex.mem_read.signal == 1 && ((pipeln.id_ex.reg_rt == temp.r_t.r_i.rs) || (pipeln.id_ex.reg_rt == temp.r_t.r_i.rt)))
         {
-            CURRENT_STATE.PC -= 4;
+            pipeln.if_id.proceed_and_stall = 0;
             pipeln.if_id.stall = 1;
+            return pipeln.if_id.pc;
+            //CURRENT_STATE.PC -= 4;
+        }
+        
+        if(temp.opcode == 2 || temp.opcode == 3 || (temp.opcode == 0 && temp.func_code == 0x08))
+        {
+            if(pipeln.if_id.stall == 0 && pipeln.if_id.proceed_and_stall < 0)
+                pipeln.if_id.proceed_and_stall = 0;
+            else if(pipeln.if_id.stall == 0 && pipeln.if_id.proceed_and_stall == 0)
+            {
+                pipeln.if_id.proceed_and_stall = 1;
+                pipeln.if_id.stall = 1;
+            }
+            return pipeln.if_id.pc;
+        }
+
+        if(no_bp_set)   //bp is not present
+        {
+            if(temp.opcode == 4 || temp.opcode == 5) //beq or bne
+            {
+                if(pipeln.if_id.stall == 0 && pipeln.if_id.proceed_and_stall < 0)
+                    pipeln.if_id.proceed_and_stall = 0;
+                else if(pipeln.if_id.stall == 0 && pipeln.if_id.proceed_and_stall == 0)
+                {
+                    pipeln.if_id.proceed_and_stall = 1;
+                    pipeln.if_id.stall = 1;
+                }
+                return pipeln.if_id.pc;
+                //CURRENT_STATE.PC -= 4;
+            }
+        }
+        else            //bp is present
+        {
+            //bp unit
+            if(temp.opcode == 4 || temp.opcode == 5) //beq or bne - always take branch
+            {
+                return pipeln.if_id.pc + (sign_ext_imm << 2) + 4;
+                //CURRENT_STATE.PC = CURRENT_STATE.PC + (sign_ext_imm << 2);
+                //CURRENT_STATE.PC = CURRENT_STATE.PC + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
+            }
         }
     }
+    return pipeln.if_id.pc + 4;
 }
 
 void decode()
 {
     if(pipeln.id_ex.flushed)
         pipeln.id_ex.flushed = 0;
-    else if(pipeln.if_id.stall)
+    else if(pipeln.if_id.proceed_and_stall == 0 && pipeln.if_id.stall > 0)
     {
         stall();
-        pipeln.if_id.stall = 0;
+        pipeln.if_id.stall -= 1;
+        pipeln.if_id.proceed_and_stall -= 1; //reset proceed_and_stall (nobp and jumps)
     }
     else
     {
+        pipeln.if_id.proceed_and_stall -= 1; //reset proceed_and_stall (nobp and jumps)
+
         pipeln.id_ex.inst = parsing_instr(pipeln.if_id.binary_inst, (pipeln.if_id.pc - MEM_TEXT_START) >> 2);
         pipeln.id_ex.pc = pipeln.if_id.pc;
 
@@ -109,8 +153,11 @@ void decode()
     }
 }
 
-void execute()
+uint32_t execute(int no_bp_set)
 {
+    pipeln.ex_mem.inst = pipeln.id_ex.inst;
+    pipeln.ex_mem.pc = pipeln.id_ex.pc;
+
     instruction *instr = pipeln.id_ex.inst;
     if(instr.opcode == 0 && instr.func_code == 0 && instr.r_t.r_i.rs == 0){
         pipeln.ex_mem.wb.signal = 0;
@@ -160,8 +207,9 @@ void execute()
                 pipeln.ex_mem.wb.val_rd = 0;
             }
         } else if (instr.func_code == 0x08){//jr
-            flush();
-            CURRENT_STATE.PC = val_rs - 4; //-4 cuz cycle() has +4 at the end
+            return val_rs;
+            //flush();
+            //CURRENT_STATE.PC = val_rs - 4; //-4 cuz cycle() has +4 at the end
         }
     }
     else if(instr.opcode == 2 || instr.opcode == 3)
@@ -178,8 +226,9 @@ void execute()
 
         pipeln.ex_mem.mem.signal = 0;
 
-        flush();
-        CURRENT_STATE.PC = target - 4; //-4 cuz cycle() has +4 at the end
+        return target;
+        //flush();
+        //CURRENT_STATE.PC = target - 4; //-4 cuz cycle() has +4 at the end
     }  
     else
     {  
@@ -223,11 +272,26 @@ void execute()
             pipeln.ex_mem.mem.signal = 0;
 
             uint32_t sign_ext_imm = sign_extend(imm);
-            if(val_rs == val_rt)
+            if(no_bp_set)
             {
-                flush();
-                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
-                //pc = pc + 4 + imm
+                if(val_rs == val_rt)//branch taken
+                    return pipeln.id_ex.pc + (sign_ext_imm << 2) + 4;
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2); //-4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
+                    //pc = pc + 4 + imm
+                else                //branch not taken
+                    return pipeln.id_ex.pc + 4;
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc; //no +4 cuz cycle() has +4 at the end
+            }
+            else
+            {
+                if(val_rs != val_rt) 
+                {
+                    //bp is that it is always taken so flush when beq is not met
+                    flush();
+                    return pipeln.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc; //no +4 cuz cycle() has +4 at the end
+                }
             }
         }
         else if(instr.opcode == 5) // "bne"
@@ -236,11 +300,26 @@ void execute()
             pipeln.ex_mem.mem.signal = 0;
 
             uint32_t sign_ext_imm = sign_extend(imm);
-            if(val_rs != val_rt)
+            if(no_bp_set)
             {
-                flush();
-                CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
-                //pc = pc + 4 + imm
+                if(val_rs != val_rt)//branch taken
+                    return pipeln.id_ex.pc + (sign_ext_imm << 2) + 4;
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2); //-4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
+                else                //branch not taken
+                    return pipeln.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc; //no +4 cuz cycle() has +4 at the end
+            }
+            else
+            {
+                if(val_rs == val_rt)
+                {
+                    flush();
+                    return pipeln.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc; //no +4 cuz cycle() has +4 at the end
+                    //CURRENT_STATE.PC = pipeln.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
+                    //pc = pc + 4 + imm
+                }
             }
         }
         else if(instr.opcode == 15) // "lui"
@@ -296,9 +375,7 @@ void execute()
             //mem_write_32(CURRENT_STATE.REGS[rs] + sign_ext_imm, CURRENT_STATE.REGS[rt]);
         }
     }
-
-    pipeln.ex_mem.inst = pipeln.id_ex.inst;
-    pipeln.ex_mem.pc = pipeln.id_ex.pc;
+    return pipeln.id_ex.pc + 4;
 }
 
 void memory()

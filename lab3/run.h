@@ -112,12 +112,13 @@
 /* functions */
 //instruction*	get_inst_info(uint32_t pc);
 char*	get_inst_info(uint32_t pc);
-void        fetch();
+uint32_t    fetch(int no_bp_set);
 void        decode();
-void        execute();
+uint32_t    execute(int no_bp_set);
 void        memory();
 void        write_back();
 void        flush();
+void        stall();
 uint32_t    sign_extend(short imm);
 uint32_t    zero_extend(short imm);
 void		process_instruction();

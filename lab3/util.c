@@ -176,14 +176,27 @@ void mem_write_32(uint32_t address, uint32_t value)
 /* Purpose   : Execute a cycle                                 */
 /*                                                             */
 /***************************************************************/
-void cycle() {                                                
+void cycle(int no_bp_set) {
     write_back();
     memory();
-    execute();
+    uint32_t temp_pc_execute = execute(no_bp_set);
     decode();
-    fetch();
+    uint32_t temp_pc_fetch = fetch(no_bp_set);
     INSTRUCTION_COUNT++;
-    CURRENT_STATE.PC += 4;
+
+    if(CURRENT_STATE.PC + 4 != temp_pc_execute)
+    {
+        //if execute has jump or branch taken
+        CURRENT_STATE.PC = temp_pc_execute;
+    }
+    else if(CURRENT_STATE.PC + 4 != temp_pc_fetch)
+    {
+        //if execute wants to proceed but fetch wants to stall (hazards detected)
+        CURRENT_STATE.PC = temp_pc_fetch;
+    }
+    else
+        CURRENT_STATE.PC += 4;
+    //CURRENT_STATE.PC += 4;
     //commit_to_latches();
 
 /*
@@ -199,7 +212,7 @@ void cycle() {
 /* Purpose   : Simulate MIPS for n cycles                      */
 /*                                                             */
 /***************************************************************/
-void run(int num_cycles) {
+void run(int num_cycles, int no_bp_set) {
     int i;
 
     if (RUN_BIT == FALSE) {
@@ -213,7 +226,7 @@ void run(int num_cycles) {
 	    printf("Simulator halted\n\n");
 	    break;
 	}
-	cycle();
+	cycle(no_bp_set);
     }
 }
 
@@ -224,7 +237,7 @@ void run(int num_cycles) {
 /* Purpose   : Simulate MIPS until HALTed                      */
 /*                                                             */
 /***************************************************************/
-void go() {
+void go(int no_bp_set) {
     if (RUN_BIT == FALSE) {
 	printf("Can't simulate, Simulator is halted\n\n");
 	return;
@@ -232,7 +245,7 @@ void go() {
 
     printf("Simulating...\n\n");
     while (RUN_BIT)
-	cycle();
+	cycle(int no_bp_set);
     printf("Simulator halted\n\n");
 }
 
