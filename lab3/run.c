@@ -37,10 +37,10 @@ uint32_t fetch(int no_bp_set)
         PIPELN.if_id.flushed = 0;
     else
     {
-        printf("fetch method");
-        printf("pc: 0x%08x \n", CURRENT_STATE.PC);
-        printf("index: %i \n", (CURRENT_STATE.PC - MEM_TEXT_START) >> 2);
-        printf("opcode: %i \n", INST_INFO[(CURRENT_STATE.PC - MEM_TEXT_START) >> 2].opcode);
+        //printf("fetch method");
+        //printf("pc: 0x%08x \n", CURRENT_STATE.PC);
+        //printf("index: %i \n", (CURRENT_STATE.PC - MEM_TEXT_START) >> 2);
+        //printf("opcode: %i \n", INST_INFO[(CURRENT_STATE.PC - MEM_TEXT_START) >> 2].opcode);
         PIPELN.if_id.inst = INST_INFO[(CURRENT_STATE.PC - MEM_TEXT_START) >> 2];
         //PIPELN.if_id.inst = get_inst_info(CURRENT_STATE.PC);
         PIPELN.if_id.pc = CURRENT_STATE.PC;
@@ -49,6 +49,7 @@ uint32_t fetch(int no_bp_set)
         instruction instr = PIPELN.if_id.inst;
         if(PIPELN.id_ex.mem_read.signal == 1 && ((PIPELN.id_ex.reg_rt == instr.r_t.r_i.rs) || (PIPELN.id_ex.reg_rt == instr.r_t.r_i.rt)))
         {
+            printf("stall1-------------------\n");
             PIPELN.if_id.proceed_and_stall = 0;
             PIPELN.if_id.stall = 1;
             return PIPELN.if_id.pc;
@@ -57,6 +58,7 @@ uint32_t fetch(int no_bp_set)
         
         if(instr.opcode == 2 || instr.opcode == 3 || (instr.opcode == 0 && instr.func_code == 0x08))
         {
+            printf("stall2-------------------\n");
             if(PIPELN.if_id.stall == 0 && PIPELN.if_id.proceed_and_stall < 0)
                 PIPELN.if_id.proceed_and_stall = 0;
             else if(PIPELN.if_id.stall == 0 && PIPELN.if_id.proceed_and_stall == 0)
@@ -69,6 +71,7 @@ uint32_t fetch(int no_bp_set)
 
         if(no_bp_set)   //bp is not present
         {
+            printf("stall3-------------------\n");
             if(instr.opcode == 4 || instr.opcode == 5) //beq or bne
             {
                 if(PIPELN.if_id.stall == 0 && PIPELN.if_id.proceed_and_stall < 0)
@@ -127,6 +130,8 @@ void decode()
 
         if(PIPELN.id_ex.inst.opcode == 35) // "lw"
             PIPELN.id_ex.mem_read.signal = 1;
+        else
+            PIPELN.id_ex.mem_read.signal = 0;
 
         //forwarding unit
         //rs
@@ -144,8 +149,10 @@ void decode()
         else if(PIPELN.ex_mem.wb.signal == 1 && PIPELN.ex_mem.wb.reg_rd != 0 && PIPELN.ex_mem.wb.reg_rd == PIPELN.id_ex.reg_rs)
         {
             //ex_mem forwarding
+            //printf("rs:ex_mem to ex triggered------------------------------------------------------------\n");
             PIPELN.id_ex.forwarded.signal_rs = 1;
             PIPELN.id_ex.forwarded.val_rs = PIPELN.ex_mem.wb.val_rd;
+            //printf("val_rs: 0x%08x \n", PIPELN.id_ex.forwarded.val_rs);
         }
         else
             PIPELN.id_ex.forwarded.signal_rs = 0;
@@ -271,6 +278,7 @@ uint32_t execute(int no_bp_set)
         else
             val_rt = PIPELN.id_ex.val_rt;
 
+        //printf("val_rs: 0x%08x \n", val_rs);
         short imm = PIPELN.id_ex.inst.r_t.r_i.r_i.imm;
 
         if(instr.opcode == 9) // "addiu"
@@ -317,8 +325,10 @@ uint32_t execute(int no_bp_set)
                 if(val_rs != val_rt) 
                 {
                     //bp is that it is always taken so flush when beq is not met
+                    uint32_t new_pc = PIPELN.id_ex.pc + 4; //cuz flush() resets pc
                     flush();
-                    return PIPELN.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
+                    return new_pc;
+                    //return PIPELN.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
                     //CURRENT_STATE.PC = PIPELN.id_ex.pc; //no +4 cuz cycle() has +4 at the end
                 }
             }
@@ -343,8 +353,10 @@ uint32_t execute(int no_bp_set)
             {
                 if(val_rs == val_rt)
                 {
+                    uint32_t new_pc = PIPELN.id_ex.pc + 4; //cuz flush() resets pc
                     flush();
-                    return PIPELN.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
+                    return new_pc;
+                    //return PIPELN.id_ex.pc + 4; //no +4 cuz cycle() has +4 at the end
                     //CURRENT_STATE.PC = PIPELN.id_ex.pc; //no +4 cuz cycle() has +4 at the end
                     //CURRENT_STATE.PC = PIPELN.id_ex.pc + (sign_ext_imm << 2) - 4; //-4 cuz cycle() has +4 at the end
                     //pc = pc + 4 + imm
