@@ -1,31 +1,48 @@
-KAIST CS311 2015 Fall                       
+Pipeline Register States
+There is a 'struct' defined in util.h for the pipeline registers (pipeln)
 
-Made by TAs of CS311
+IF/ID has
+    - int flushed : to signal that if/id has been flushed
+    - uint32_t pc : stores pc of instruction in register
+    - instruction inst : stores the instruction (better if it were to be binary)
 
-Project Lab2 - MIPS Emulator
+ID/EX has
+    - int flushed : to signal that if/id has been flushed
+    - uint32_t pc : stores pc of instruction in register
+    - instruction inst : stores the instruction (better if it were to be binary)
+    - unsigned char reg_rs : pluck the register number for rs from inst
+    - uint32_t val_rs : get the value stored in register for rs
+    - unsigned char reg_rt : pluck the register number for rt from inst
+    - uint32_t val_rt : get the value stored in register for rt
+    - int mem_read.signal : control signal to check that inst in id/ex latch is a mem_read (lw) - for hazard unit
+    - int forwarded.signal_rs : control signlal to set that rs has been forwarded
+    - int forwarded.signal_rt : control signlal to set that rt has been forwarded
+    - uint32_t forwarded.val_rs : forwarded value of rs
+    - uint32_t forwarded.val_rt : forwarded value of rt
 
-[File Description]
-cs311.c ----------- This contains main function.
-                    It uploads instruction and data into memory regions, and parse and execute them by using functions which will be implemented by you.
+EX/MEM has
+    - unsigned char reg_rs : pluck the register number for rs from inst
+    - uint32_t val_rs : get the value stored in register for rs
+    - unsigned char reg_rt : pluck the register number for rt from inst
+    - uint32_t val_rt : get the value stored in register for rt
+    - int mem.signal : control signal that mem will be read or written to during mem stage
+    - uint32_t mem.address : the address to which to read from or write to during mem stage
+    - unsigned mem.char reg_rt : register number to load into (for lw)
+    - uint32_t mem.val_rt : value to store into memory (for sw)
+    - int wb.signal : control signal that write back will be done during wb stage
+    - unsigned char wb.reg_rd : destination register number for write back
+    - uint32_t wb.val_rd : value to write into destination register during write back
+    - int update_pc : notify if pc was unnaturally updated (jump, branch misprediction, bubbles, stalls)
+    - uint32_t updated_pc : next pc value after jump branch misprediction, bubbles or stalls
+    - int updated_flush : number of latches to flush
+    - int forwarded.signal : mem/wb-to-mem forwarding signal
+    - uint32_t forwarded.val_rt : value that has been forwarded
+    - uint32_t pc : stores pc of instruction in register
+    - instruction inst : stores the instruction (better if it were to be binary)
 
-util.c & util.h --- This contains all the data structures.
-                    This also contains several useful functions. (Read and write data into the memory region, initialize the memory region and etc...)
-
-parse.c & parse.h - This contains variables and functions to parse the instruction and data.
-                    You should implement them.
-
-run.c & run.h ----- This contains variables and functions to execute instructions.
-                    You should implement them.
-
-sample_input ------ This directory contains serveral sample input files.
-                    Please use these files for your program testing.
-
-[Compile & Execution]
-Just type "make" to compile your code.
-You can execute your program using this command: ./cs311em [-m addr1:addr2] [-d] [-n num_instr] inputBinary
-	* -m : Dump the memory content form addr1 to addr2
-	* -d : Print the register file content for each instruction execution. Print memory content too if -m option is enabled.
-	* -n : Number of instructions to execute. Default value is 100.
-
-In each file, we write some comments to help you to understand the code, so please read them carefully. :D
-If you have any question, please email us. (cs311_ta@calab.kaist.ac.kr)
+MEM/WB has
+    - int signal : control signal that write back will be done during wb stage
+    - unsigned char reg_rd : destination register number for write back
+    - uint32_t val_rd : control signal that write back will be done during wb stage
+    - uint32_t pc : stores pc of instruction in register
+    - instruction inst : stores the instruction (better if it were to be binary)
