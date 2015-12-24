@@ -93,6 +93,34 @@ char** str_split(char *a_str, const char a_delim)
 
 /***************************************************************/
 /*                                                             */
+/* Procedure : pdump                                           */
+/*                                                             */
+/* Purpose   : Dump current pipeline PC state                  */   
+/*                                                             */
+/***************************************************************/
+void pdump() {                               
+    int k; 
+
+    printf("Current pipeline PC state :\n");
+    printf("-------------------------------------\n");
+    printf("CYCLE %d:", INSTRUCTION_COUNT );
+    for(k = 0; k < 5; k++)
+    {
+    	if(CURRENT_STATE.PIPE[k])
+	    printf("0x%08x", CURRENT_STATE.PIPE[k]);
+	else
+	    printf("          ");
+	
+	if( k != PIPE_STAGE - 1 )
+	    printf("|");
+    }
+    printf("\n\n");
+}
+
+
+
+/***************************************************************/
+/*                                                             */
 /* Procedure: fromBinary                                       */
 /*                                                             */
 /* Purpose: From binary to integer                             */
@@ -191,7 +219,7 @@ int cycle(int no_bp_set, int forwarding_set) {
     uint32_t temp_pc_memory = memory();
     //printf("temp_pc_memory: 0x%08x \n", temp_pc_memory);
     execute(no_bp_set);
-    uint32_t temp_pc_decode = decode(no_bp_set);
+    uint32_t temp_pc_decode = decode(no_bp_set, forwarding_set);
     //printf("temp_pc_decode: 0x%08x \n", temp_pc_decode);
     fetch();
     INSTRUCTION_COUNT++;
@@ -228,7 +256,7 @@ int cycle(int no_bp_set, int forwarding_set) {
 /* Purpose   : Simulate MIPS for n cycles                      */
 /*                                                             */
 /***************************************************************/
-void run(int num_cycles, int no_bp_set, int forwarding_set) {
+void run(int num_cycles, int no_bp_set, int forwarding_set, int pipe_dump_set) {
     int i;
 
     if (RUN_BIT == FALSE) {
@@ -245,6 +273,7 @@ void run(int num_cycles, int no_bp_set, int forwarding_set) {
         int committed = cycle(no_bp_set, forwarding_set);
         if(committed)
             num_cycles--;
+        if(pipe_dump_set) pdump();
     }
 }
 
@@ -305,32 +334,6 @@ void rdump() {
     for (k = 0; k < MIPS_REGS; k++)
 	printf("R%d: 0x%08x\n", k, CURRENT_STATE.REGS[k]);
     printf("\n");
-}
-
-/***************************************************************/
-/*                                                             */
-/* Procedure : pdump                                           */
-/*                                                             */
-/* Purpose   : Dump current pipeline PC state                  */   
-/*                                                             */
-/***************************************************************/
-void pdump() {                               
-    int k; 
-
-    printf("Current pipeline PC state :\n");
-    printf("-------------------------------------\n");
-    printf("CYCLE %d:", INSTRUCTION_COUNT );
-    for(k = 0; k < 5; k++)
-    {
-    	if(CURRENT_STATE.PIPE[k])
-	    printf("0x%08x", CURRENT_STATE.PIPE[k]);
-	else
-	    printf("          ");
-	
-	if( k != PIPE_STAGE - 1 )
-	    printf("|");
-    }
-    printf("\n\n");
 }
 
 /***************************************************************/

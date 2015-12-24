@@ -186,12 +186,12 @@ int main(int argc, char *argv[]) {
 
             if(pipe_dump_set) pdump();
             rdump();	
-            if(mem_dump_set) mdump(addr1, addr2);
         }
+        if(mem_dump_set) mdump(addr1, addr2);
         printf("Simulator halted\n\n");
     }
     else{
-        run(i, no_bp_set, forwarding_set);
+        run(i, no_bp_set, forwarding_set, pipe_dump_set);
         rdump();
 
         if(mem_dump_set) mdump(addr1, addr2);
